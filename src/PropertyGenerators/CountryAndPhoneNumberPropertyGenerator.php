@@ -5,11 +5,11 @@ use Apie\Core\Persistence\Fields\FieldReference;
 use Apie\Core\Persistence\PersistenceFieldInterface;
 use Apie\Core\Persistence\PersistenceTableInterface;
 use Apie\CountryAndPhoneNumber\CountryAndPhoneNumber;
-use Apie\DoctrineEntityConverter\PropertyGenerators\AbstractPropertyGenerator;
+use Apie\DoctrineEntityConverter\PropertyGenerators\FieldReferencePropertyGenerator;
 use ReflectionNamedType;
 use ReflectionProperty;
 
-class CountryAndPhoneNumberPropertyGenerator extends AbstractPropertyGenerator
+class CountryAndPhoneNumberPropertyGenerator extends FieldReferencePropertyGenerator
 {
     protected function supportsProperty(
         PersistenceTableInterface $table,
@@ -31,36 +31,9 @@ class CountryAndPhoneNumberPropertyGenerator extends AbstractPropertyGenerator
     ): string {
         assert($field instanceof FieldReference);
         return sprintf(
-            '%s::createFrom(["country" => $raw->country, "phoneNumber" => $raw->phoneNumber])',
+            '%s::createFrom($raw)',
             $field->getTableReference()
         );
-    }
-
-    protected function getTypeForProperty(
-        PersistenceTableInterface $table,
-        PersistenceFieldInterface $field
-    ): string {
-        assert($field instanceof FieldReference);
-        return $field->getTableReference();
-    }
-
-
-    protected function getDoctrineAttribute(
-        PersistenceTableInterface $table,
-        PersistenceFieldInterface $field
-    ): string {
-        return OneToOne::class;
-    }
-
-    protected function getDoctrineAttributeValue(
-        PersistenceTableInterface $table,
-        PersistenceFieldInterface $field
-    ): array {
-        assert($field instanceof FieldReference);
-        return [
-            'targetEntity' => $field->getTableReference(),
-            'cascade' => ['all'],
-        ];
     }
 
     protected function generateInjectConversion(
@@ -69,19 +42,9 @@ class CountryAndPhoneNumberPropertyGenerator extends AbstractPropertyGenerator
         ReflectionProperty $property
     ): string {
         assert($field instanceof FieldReference);
-        $property = $field->getProperty();
-        assert($property instanceof ReflectionProperty);
-        $declaredClass = $property->getDeclaringClass()->name;
-        assert(null !== $declaredClass);
-        $declaringClass = 'OriginalDomainObject';
-        if ($table->getOriginalClass() !== $declaredClass) {
-            $declaringClass = '\\' . $declaredClass;
-        }
-
         return sprintf(
-            '$tmp; $tmp->inject(Utils::getProperty($instance, new \ReflectionProperty(%s::class, %s))); $converted = $tmp',
-            $declaringClass,
-            var_export($property->name, true)
+            '\\%s::fromNative(["country" => $tmp->apie_country, "phoneNumber" => $tmp->apie_phone_number])',
+            CountryAndPhoneNumber::class
         );
     }
 }
